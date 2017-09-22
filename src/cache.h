@@ -5,10 +5,12 @@
 #include <utils/memutils.h>
 #include <utils/hsearch.h>
 
+#include "compat.h"
+
 typedef struct CacheQuery
 {
 	void	   *result;
-	void	   *data[0];
+	void	   *data[TS_FLEXIBLE_ARRAY_MEMBER];
 } CacheQuery;
 
 typedef struct CacheStats
