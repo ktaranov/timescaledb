@@ -223,6 +223,10 @@ $BODY$
 DECLARE
     older_than_internal BIGINT;
 BEGIN
+    IF older_than IS NULL THEN
+        RAISE 'The timestamp provided to drop_chunks cannot be null';
+    END IF;
+
     SELECT (EXTRACT(epoch FROM older_than)*1e6)::BIGINT INTO older_than_internal;
     PERFORM _timescaledb_internal.drop_chunks_older_than(older_than_internal, table_name, schema_name);
 END

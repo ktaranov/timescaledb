@@ -110,9 +110,9 @@ const static InternalFunctionDef internal_function_definitions[_MAX_INTERNAL_FUN
 		.name = "change_column_type",
 		.args = 3
 	},
-	[DDL_DROP_CHUNK] = {
-		.name = "drop_chunk",
-		.args = 3
+	[DDL_DROP_CHUNK_METADATA] = {
+		.name = "drop_chunk_metadata",
+		.args = 1
 	},
 	[CHUNK_CREATE] = {
 		.name = "chunk_create",

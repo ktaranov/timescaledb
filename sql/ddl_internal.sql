@@ -236,11 +236,24 @@ CREATE OR REPLACE FUNCTION _timescaledb_internal.drop_hypertable(
 )
     RETURNS VOID LANGUAGE PLPGSQL VOLATILE AS
 $BODY$
-BEGIN 
-    PERFORM _timescaledb_internal.drop_chunk(c.id, is_cascade)
-    FROM _timescaledb_catalog.hypertable h
-    INNER JOIN _timescaledb_catalog.chunk c ON (c.hypertable_id = h.id)
-    WHERE h.id = drop_hypertable.hypertable_id;
+DECLARE
+    cascade_mod TEXT := '';
+    chunk_row _timescaledb_catalog.chunk;
+BEGIN
+    IF is_cascade THEN
+        cascade_mod = 'CASCADE';
+    END IF;
+    FOR chunk_row IN SELECT c.*
+        FROM _timescaledb_catalog.hypertable h
+        INNER JOIN _timescaledb_catalog.chunk c ON (c.hypertable_id = h.id)
+        WHERE h.id = drop_hypertable.hypertable_id
+        LOOP
+            EXECUTE format(
+                $$
+                DROP TABLE %I.%I %s
+                $$, chunk_row.schema_name, chunk_row.table_name, cascade_mod
+            );
+        END LOOP;
 
     DELETE FROM _timescaledb_catalog.hypertable h
     WHERE h.id = drop_hypertable.hypertable_id;
@@ -259,7 +272,8 @@ $BODY$
 $BODY$;
 
 -- Drop chunks older than the given timestamp. If a hypertable name is given,
--- drop only chunks associated with this table.
+-- drop only chunks associated with this table. Any of the three arguments
+-- can be NULL meaning "all values".
 CREATE OR REPLACE FUNCTION _timescaledb_internal.drop_chunks_older_than(
     older_than_time  BIGINT,
     table_name  NAME = NULL,
@@ -267,18 +281,30 @@ CREATE OR REPLACE FUNCTION _timescaledb_internal.drop_chunks_older_than(
 )
     RETURNS VOID LANGUAGE PLPGSQL VOLATILE AS
 $BODY$
+DECLARE 
+    chunk_row _timescaledb_catalog.chunk;
 BEGIN
-    PERFORM _timescaledb_internal.drop_chunk(c.id, false)
-    FROM _timescaledb_catalog.chunk c
-    INNER JOIN _timescaledb_catalog.hypertable h ON (h.id = c.hypertable_id)
-    INNER JOIN  _timescaledb_internal.dimension_get_time(h.id) time_dimension ON(true)
-    INNER JOIN _timescaledb_catalog.dimension_slice ds
-        ON (ds.dimension_id =  time_dimension.id)
-    INNER JOIN _timescaledb_catalog.chunk_constraint cc
-        ON (cc.dimension_slice_id = ds.id AND cc.chunk_id = c.id)
-    WHERE ds.range_end <= older_than_time
-    AND (drop_chunks_older_than.schema_name IS NULL OR h.schema_name = drop_chunks_older_than.schema_name)
-    AND (drop_chunks_older_than.table_name IS NULL OR h.table_name = drop_chunks_older_than.table_name);
+    IF older_than_time IS NULL AND table_name IS NULL AND schema_name IS NULL THEN
+        RAISE 'Cannot have all 3 arguments to drop_chunks_older_than be NULL';
+    END IF;
+    FOR chunk_row IN SELECT *
+        FROM _timescaledb_catalog.chunk c
+        INNER JOIN _timescaledb_catalog.hypertable h ON (h.id = c.hypertable_id)
+        INNER JOIN _timescaledb_internal.dimension_get_time(h.id) time_dimension ON(true)
+        INNER JOIN _timescaledb_catalog.dimension_slice ds
+            ON (ds.dimension_id = time_dimension.id)
+        INNER JOIN _timescaledb_catalog.chunk_constraint cc
+            ON (cc.dimension_slice_id = ds.id AND cc.chunk_id = c.id)
+        WHERE (older_than_time IS NULL OR ds.range_end <= older_than_time)
+        AND (drop_chunks_older_than.schema_name IS NULL OR h.schema_name = drop_chunks_older_than.schema_name)
+        AND (drop_chunks_older_than.table_name IS NULL OR h.table_name = drop_chunks_older_than.table_name)
+    LOOP
+        EXECUTE format(
+                $$
+                DROP TABLE %I.%I
+                $$, chunk_row.schema_name, chunk_row.table_name
+        );
+    END LOOP;
 END
 $BODY$;
 
@@ -506,15 +532,9 @@ CREATE OR REPLACE FUNCTION _timescaledb_internal.truncate_hypertable(
 $BODY$
 DECLARE
     hypertable_row _timescaledb_catalog.hypertable;
+    chunk_row _timescaledb_catalog.chunk;
 BEGIN
-
-    SELECT * INTO STRICT hypertable_row
-    FROM _timescaledb_catalog.hypertable ht
-    WHERE ht.schema_name = truncate_hypertable.schema_name
-    AND ht.table_name = truncate_hypertable.table_name;
-
-    PERFORM  _timescaledb_internal.drop_chunk(c.id, FALSE)
-    FROM _timescaledb_catalog.chunk c
-    WHERE hypertable_id = hypertable_row.id;
+    --TODO: should this cascade?
+    PERFORM  _timescaledb_internal.drop_chunks_older_than(NULL, table_name, schema_name);
 END
 $BODY$;

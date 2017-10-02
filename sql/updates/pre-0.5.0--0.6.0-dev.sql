@@ -10,3 +10,5 @@ DROP FUNCTION public.time_bucket(SMALLINT, SMALLINT);
 DROP FUNCTION public.time_bucket(BIGINT, BIGINT, BIGINT);
 DROP FUNCTION public.time_bucket(INT, INT, INT);
 DROP FUNCTION public.time_bucket(SMALLINT, SMALLINT, SMALLINT);
+
+DROP FUNCTION _timescaledb_internal.drop_chunk(INTEGER, BOOLEAN, BOOLEAN);

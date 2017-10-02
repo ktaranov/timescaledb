@@ -7,6 +7,18 @@ CREATE DATABASE single;
 \c single
 CREATE EXTENSION IF NOT EXISTS timescaledb;
 SET timescaledb.disable_optimizations = :DISABLE_OPTIMIZATIONS;
+\ir include/switch_regular_user.sql
+DO $$
+BEGIN
+    CREATE ROLE alt_usr LOGIN;
+EXCEPTION
+    WHEN duplicate_object THEN
+        --mute error
+END$$;
+--needed for ddl ops:
+CREATE SCHEMA IF NOT EXISTS "customSchema" AUTHORIZATION alt_usr;
+--test creating and using schema as non-superuser
+\c single alt_usr
 \o
 CREATE TABLE PUBLIC.drop_chunk_test1(time bigint, temp float8, device_id text);
 CREATE TABLE PUBLIC.drop_chunk_test2(time bigint, temp float8, device_id text);
@@ -89,20 +101,20 @@ WHERE h.schema_name = 'public' AND (h.table_name = 'drop_chunk_test1' OR h.table
 
 \dt "_timescaledb_internal".*
                       List of relations
-        Schema         |       Name        | Type  |  Owner   
------------------------+-------------------+-------+----------
- _timescaledb_internal | _hyper_1_1_chunk  | table | postgres
- _timescaledb_internal | _hyper_1_2_chunk  | table | postgres
- _timescaledb_internal | _hyper_1_3_chunk  | table | postgres
- _timescaledb_internal | _hyper_1_4_chunk  | table | postgres
- _timescaledb_internal | _hyper_1_5_chunk  | table | postgres
- _timescaledb_internal | _hyper_1_6_chunk  | table | postgres
- _timescaledb_internal | _hyper_2_10_chunk | table | postgres
- _timescaledb_internal | _hyper_2_11_chunk | table | postgres
- _timescaledb_internal | _hyper_2_12_chunk | table | postgres
- _timescaledb_internal | _hyper_2_7_chunk  | table | postgres
- _timescaledb_internal | _hyper_2_8_chunk  | table | postgres
- _timescaledb_internal | _hyper_2_9_chunk  | table | postgres
+        Schema         |       Name        | Type  |  Owner  
+-----------------------+-------------------+-------+---------
+ _timescaledb_internal | _hyper_1_1_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_1_2_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_1_3_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_1_4_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_1_5_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_1_6_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_2_10_chunk | table | alt_usr
+ _timescaledb_internal | _hyper_2_11_chunk | table | alt_usr
+ _timescaledb_internal | _hyper_2_12_chunk | table | alt_usr
+ _timescaledb_internal | _hyper_2_7_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_2_8_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_2_9_chunk  | table | alt_usr
 (12 rows)
 
 SELECT _timescaledb_internal.drop_chunks_older_than(2);
@@ -134,18 +146,18 @@ WHERE h.schema_name = 'public' AND (h.table_name = 'drop_chunk_test1' OR h.table
 
 \dt "_timescaledb_internal".*
                       List of relations
-        Schema         |       Name        | Type  |  Owner   
------------------------+-------------------+-------+----------
- _timescaledb_internal | _hyper_1_2_chunk  | table | postgres
- _timescaledb_internal | _hyper_1_3_chunk  | table | postgres
- _timescaledb_internal | _hyper_1_4_chunk  | table | postgres
- _timescaledb_internal | _hyper_1_5_chunk  | table | postgres
- _timescaledb_internal | _hyper_1_6_chunk  | table | postgres
- _timescaledb_internal | _hyper_2_10_chunk | table | postgres
- _timescaledb_internal | _hyper_2_11_chunk | table | postgres
- _timescaledb_internal | _hyper_2_12_chunk | table | postgres
- _timescaledb_internal | _hyper_2_8_chunk  | table | postgres
- _timescaledb_internal | _hyper_2_9_chunk  | table | postgres
+        Schema         |       Name        | Type  |  Owner  
+-----------------------+-------------------+-------+---------
+ _timescaledb_internal | _hyper_1_2_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_1_3_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_1_4_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_1_5_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_1_6_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_2_10_chunk | table | alt_usr
+ _timescaledb_internal | _hyper_2_11_chunk | table | alt_usr
+ _timescaledb_internal | _hyper_2_12_chunk | table | alt_usr
+ _timescaledb_internal | _hyper_2_8_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_2_9_chunk  | table | alt_usr
 (10 rows)
 
 SELECT _timescaledb_internal.drop_chunks_older_than(3, 'drop_chunk_test1');
@@ -176,17 +188,17 @@ WHERE h.schema_name = 'public' AND (h.table_name = 'drop_chunk_test1' OR h.table
 
 \dt "_timescaledb_internal".*
                       List of relations
-        Schema         |       Name        | Type  |  Owner   
------------------------+-------------------+-------+----------
- _timescaledb_internal | _hyper_1_3_chunk  | table | postgres
- _timescaledb_internal | _hyper_1_4_chunk  | table | postgres
- _timescaledb_internal | _hyper_1_5_chunk  | table | postgres
- _timescaledb_internal | _hyper_1_6_chunk  | table | postgres
- _timescaledb_internal | _hyper_2_10_chunk | table | postgres
- _timescaledb_internal | _hyper_2_11_chunk | table | postgres
- _timescaledb_internal | _hyper_2_12_chunk | table | postgres
- _timescaledb_internal | _hyper_2_8_chunk  | table | postgres
- _timescaledb_internal | _hyper_2_9_chunk  | table | postgres
+        Schema         |       Name        | Type  |  Owner  
+-----------------------+-------------------+-------+---------
+ _timescaledb_internal | _hyper_1_3_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_1_4_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_1_5_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_1_6_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_2_10_chunk | table | alt_usr
+ _timescaledb_internal | _hyper_2_11_chunk | table | alt_usr
+ _timescaledb_internal | _hyper_2_12_chunk | table | alt_usr
+ _timescaledb_internal | _hyper_2_8_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_2_9_chunk  | table | alt_usr
 (9 rows)
 
 DROP TABLE _timescaledb_internal._hyper_1_6_chunk;
@@ -211,15 +223,15 @@ WHERE h.schema_name = 'public' AND (h.table_name = 'drop_chunk_test1' OR h.table
 
 \dt "_timescaledb_internal".*
                       List of relations
-        Schema         |       Name        | Type  |  Owner   
------------------------+-------------------+-------+----------
- _timescaledb_internal | _hyper_1_3_chunk  | table | postgres
- _timescaledb_internal | _hyper_1_4_chunk  | table | postgres
- _timescaledb_internal | _hyper_1_5_chunk  | table | postgres
- _timescaledb_internal | _hyper_2_10_chunk | table | postgres
- _timescaledb_internal | _hyper_2_11_chunk | table | postgres
- _timescaledb_internal | _hyper_2_12_chunk | table | postgres
- _timescaledb_internal | _hyper_2_8_chunk  | table | postgres
- _timescaledb_internal | _hyper_2_9_chunk  | table | postgres
+        Schema         |       Name        | Type  |  Owner  
+-----------------------+-------------------+-------+---------
+ _timescaledb_internal | _hyper_1_3_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_1_4_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_1_5_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_2_10_chunk | table | alt_usr
+ _timescaledb_internal | _hyper_2_11_chunk | table | alt_usr
+ _timescaledb_internal | _hyper_2_12_chunk | table | alt_usr
+ _timescaledb_internal | _hyper_2_8_chunk  | table | alt_usr
+ _timescaledb_internal | _hyper_2_9_chunk  | table | alt_usr
 (8 rows)
 
